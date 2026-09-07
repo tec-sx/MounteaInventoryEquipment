@@ -59,11 +59,13 @@ bool UMounteaAdvancedInventoryJsonStatics::IsSupportedJsonDefinitionFieldPinType
 		PinType.PinCategory == MounteaJsonDefinitionPinTypes::Struct;
 }
 
-static UObject* ResolveJsonObjectOuter(UObject* Target)
+namespace MounteaJsonStaticsInternal
 {
-	return IsValid(Target) ? Target : GetTransientPackage();
+	static UObject* ResolveJsonObjectOuter(UObject* Target)
+	{
+		return IsValid(Target) ? Target : GetTransientPackage();
+	}
 }
-
 static bool SetPathStringField(UMounteaJsonObject* Target, const FName FieldName, const FString& Path, UMounteaJsonObject*& JsonObject)
 {
 	JsonObject = Target;
@@ -489,7 +491,7 @@ static bool ResolveJsonObjectDefinition(const FString& DefinitionKey, const FMou
 
 UMounteaJsonObject* UMounteaAdvancedInventoryJsonStatics::CreateJsonObject(UObject* Target)
 {
-	return NewObject<UMounteaJsonObject>(ResolveJsonObjectOuter(Target));
+	return NewObject<UMounteaJsonObject>(MounteaJsonStaticsInternal::ResolveJsonObjectOuter(Target));
 }
 
 UMounteaJsonObject* UMounteaAdvancedInventoryJsonStatics::ParseJsonObjectFromString(UObject* Target, const FString& JsonString)

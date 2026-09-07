@@ -269,7 +269,11 @@ TArray<FString> UMounteaJsonObject::GetFieldNames() const
 	if (!JsonObject.IsValid())
 		return returnValue;
 
-	JsonObject->Values.GetKeys(returnValue);
+	returnValue.Reserve(JsonObject->Values.Num());
+
+	for (const auto& keyValuePair : JsonObject->Values)
+		returnValue.Add(FString(keyValuePair.Key));
+
 	return returnValue;
 }
 

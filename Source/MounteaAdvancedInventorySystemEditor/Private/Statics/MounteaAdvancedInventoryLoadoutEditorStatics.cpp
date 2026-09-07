@@ -382,7 +382,7 @@ bool UMounteaAdvancedInventoryLoadoutEditorStatics::DeserializeLoadoutFromJson(
 	{
 		for (const auto& slotKv : (*slotsObj)->Values)
 		{
-			const FString& slotName = slotKv.Key;
+			const FString slotName(slotKv.Key);
 
 			const TSharedPtr<FJsonObject>* slotVal;
 			if (!slotKv.Value->TryGetObject(slotVal))
