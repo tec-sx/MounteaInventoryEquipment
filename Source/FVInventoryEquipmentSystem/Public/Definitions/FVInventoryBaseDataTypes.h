@@ -1,0 +1,381 @@
+// Copyright (C) 2025 Dominik (Pavlicek) Morse. All rights reserved.
+//
+// Developed for the Mountea Framework as a free tool. This solution is provided
+// for use and sharing without charge. Redistribution is allowed under the following conditions:
+//
+// - You may use this solution in commercial products, provided the product is not 
+//   this solution itself (or unless significant modifications have been made to the solution).
+// - You may not resell or redistribute the original, unmodified solution.
+//
+// For more information, visit: https://mountea.tools
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "FVInventoryBaseEnums.h"
+#include "FVInventoryBaseDataTypes.generated.h"
+
+class UFVSelectableInventoryItemAction;
+class UTexture;
+class UTexture2D;
+class UGameplayEffect;
+
+#pragma region InventoryRarity
+#define LOCTEXT_NAMESPACE "InventoryRarity"
+
+/**
+ * FInventoryRarity defines the visual and economic properties of item rarity levels.
+ * Rarity structures control item appearance through color coding, economic value through price multipliers,
+ * and gameplay behavior through associated tags for consistent item classification systems.
+ *
+ * @see Item Rarity System
+ * @see UFVInventoryItemTemplate
+ */
+USTRUCT(BlueprintType)
+struct FInventoryRarity
+{
+	GENERATED_BODY()
+
+	FInventoryRarity();
+
+	/**
+	 * The name of the item rarity (e.g., Common, Rare, Epic).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Rarity",
+		meta=(DisplayPriority=0))
+	FText RarityDisplayName = LOCTEXT("InventoryRarity_DisplayName", "");
+
+	/**
+	 * The visual color associated with the rarity for UI purposes.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Rarity",
+		meta=(DisplayPriority=1))
+	FLinearColor RarityColor;
+	
+	// Rarity priority used for Sorting.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Rarity",
+		meta=(DisplayPriority=2))
+	int32 RarityPriority = 0;
+
+	/**
+	 * A multiplier applied to item trade or sale prices for this rarity.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Rarity",
+		meta=(DisplayPriority=3))
+	float BasePriceMultiplier = 1.f;
+
+	/**
+	 * Tags that define additional metadata or rules for this rarity.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Rarity",
+		meta=(DisplayPriority=4))
+	FGameplayTagContainer RarityTags;
+};
+
+#undef LOCTEXT_NAMESPACE
+#pragma endregion
+
+#pragma region InventoryCategory
+#define LOCTEXT_NAMESPACE "InventoryCategory"
+
+/**
+ * FInventoryCategoryData contains the configuration and metadata for inventory item categories.
+ * Category data defines display properties, sorting priorities, associated tags, visual icons,
+ * behavioral flags, and allowed actions for comprehensive item classification.
+ *
+ * @see Item Categories
+ * @see FInventoryCategory
+ * @see UFVInventoryItemAction
+ */
+USTRUCT(BlueprintType)
+struct FInventoryCategoryData
+{
+	GENERATED_BODY()
+
+	FInventoryCategoryData();
+
+	/**
+	 * The name of the item category (e.g., Weapon, Armor, Consumable), localized.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Category",
+		meta=(DisplayPriority=0))
+	FText CategoryDisplayName = LOCTEXT("InventoryCategory_DisplayName", "");
+
+	/**
+	 * Tags that define this Category.
+	 * By default filtered for:
+	 * - FV_Inventory.Categories
+	 * - FV_Inventory.Category
+	 * - Categories
+	 * - Category
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Category",
+		meta=(Categories="FV_Inventory.Categories,FV_Inventory.Category,Categories,Category"),
+		meta=(DisplayPriority=1))
+	FGameplayTagContainer CategoryTags;
+
+	/**
+	 * Icon used in the UI to represent this category.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Category",
+		meta=(DisplayPriority=2))
+	TSoftObjectPtr<UTexture> DisplayIcon;
+
+	/**
+	 * Defines a list of allowed Actions.
+	 * Each Item of this category can perform those Actions. Some Actions are not allowed in User Interface!
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Category",
+		meta=(MustImplement="/Script/FVInventoryEquipmentSystem.FVAdvancedInventoryItemActionInterface"),
+		meta=(DisplayPriority=3))
+	TArray<TSoftClassPtr<UFVSelectableInventoryItemAction>> AllowedActions;
+
+	/**
+	 * Priority for sorting categories in UI or other contexts.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Category",
+		meta=(DisplayPriority=4))
+	int32 CategoryPriority = 0;
+	
+	/**
+	 * Optional bitmask for category-specific behaviors (e.g., Craftable, Equipable).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Inventory Category", 
+		meta=(Bitmask, BitmaskEnum="/Script/FVInventoryEquipmentSystem.EInventoryItemFlags"),
+		meta=(DisplayPriority=5))
+	uint8 CategoryFlags;
+};
+
+/**
+ * FInventoryCategory represents a complete item category with hierarchical subcategory support.
+ * Categories provide primary classification for inventory items with nested subcategory structures
+ * for detailed item organization and management within the inventory system.
+ *
+ * @see Item Categories
+ * @see FInventoryCategoryData
+ * @see UFVInventoryItemTemplate
+ */
+USTRUCT(BlueprintType)
+struct FInventoryCategory
+{
+	GENERATED_BODY()
+
+	FInventoryCategory();
+
+	/**
+	 * Represents inventory category data, providing properties and metadata
+	 * for managing and representing inventory category.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, 
+		meta=(ShowOnlyInnerProperties),
+		meta=(DisplayPriority=0))
+	FInventoryCategoryData CategoryData;
+		
+	/**
+	 * Array of localized subcategory names associated with the inventory category.
+	 * Used for further categorization within a primary category, allowing more detailed item classification.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, 
+		meta=(ForceInlineRow, ShowOnlyInnerProperties),
+		meta=(DisplayPriority=1))
+	TMap<FString,FInventoryCategoryData> SubCategories;
+};
+
+#undef LOCTEXT_NAMESPACE
+#pragma endregion
+
+#pragma region InventoryType
+#define LOCTEXT_NAMESPACE "InventoryType"
+
+/**
+ * FInventoryTypeConfig defines the behavior, constraints, and presentation of different inventory types.
+ * Type configurations control UI widgets, access permissions, capacity limits, weight systems,
+ * and value restrictions for flexible inventory management across different use cases.
+ *
+ * @see Inventory Types
+ * @see IFVAdvancedInventoryInterface
+ * @see EInventoryFlags
+ */
+USTRUCT(BlueprintType)
+struct FInventoryTypeConfig
+{
+	GENERATED_BODY()
+
+	FInventoryTypeConfig();
+
+	/** The name of the inventory (e.g., Player, Merchant, Loot), localized */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="User Interface",
+		meta=(DisplayPriority=0))
+	FText InventoryDisplayName = LOCTEXT("InventoryType_DisplayName", "");
+
+	/** Widget class to use for this inventory type */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="User Interface", 
+		meta=(MustImplement="/Script/FVInventoryEquipmentSystem.FVAdvancedInventoryWidgetInterface"),
+		meta=(DisplayPriority=1))
+	TSoftClassPtr<UUserWidget> WidgetClass;
+
+	/** Range of allowed slots (X = Min, Y = Max) */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Constrains", 
+		meta=(ClampMin=1),
+		meta=(DisplayPriority=2))
+	FIntPoint SlotsRange = FIntPoint(10, 20);
+
+	/** Starting number of slots (must be within SlotsRange) */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Constrains", 
+		meta=(ClampMin=1, UIMin=1),
+		meta=(DisplayPriority=3))
+	int32 StartingSlots = 10;
+	
+	/** Maximum weight this inventory can hold */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Constrains", 
+		meta=(ClampMin=0.0, Units="kg"),
+		meta=(DisplayPriority=4))
+	float MaxWeight = 100.0f;
+
+	/** Thresholds for weight-based effects (in percentages) */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Constrains", 
+		meta=(ClampMin=0.0, ClampMax=1.0, Units="Percent"),
+		meta=(DisplayPriority=5))
+	FVector4 WeightThresholds = FVector4(0.3f, 0.5f, 0.7f, 0.9f);
+
+	/** Movement speed multipliers for each weight threshold */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Constrains", 
+		meta=(ClampMin=0.0, ClampMax=1.0, Units="Percent"),
+		meta=(DisplayPriority=6))
+	FVector4 WeightSpeedMultipliers = FVector4(1.0f, 0.8f, 0.6f, 0.4f);
+
+	/** Maximum total value this inventory can hold */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Constrains", 
+		meta=(ClampMin=0.0),
+		meta=(DisplayPriority=7))
+	float MaxValue = 1000.0f;
+
+	/** Tags defining special properties or restrictions for this inventory type */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Tags",
+		meta=(DisplayPriority=8))
+	FGameplayTagContainer InventoryTags;
+
+	/** Configuration flags for this inventory type */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Configuration", 
+		meta=(Bitmask, BitmaskEnum="/Script/FVInventoryEquipmentSystem.EInventoryTypeFlags"),
+		meta=(DisplayPriority=9))
+	uint8 ConfigFlags;
+
+	/** Access and behavior flags for this inventory */
+	UPROPERTY(EditAnywhere,  BlueprintReadOnly, Category="Configuration", 
+		meta=(Bitmask, BitmaskEnum="/Script/FVInventoryEquipmentSystem.EInventoryFlags"),
+		meta=(DisplayPriority=10))
+	uint8 AccessFlags;
+
+public:
+
+	bool HasWeightLimit() const;
+	bool HasValueLimit() const;
+	bool CanAddItems() const;
+
+public:
+	/** Access Flag Checks */
+	bool IsPublic() const;
+	bool IsTeamShared() const;
+	bool IsLootable() const;
+	bool IsTemporary() const;
+	bool IsPrivate() const;
+
+	/** Access Flag Setters */
+	void SetPublic(const bool bValue);
+	void SetTeamShared(const bool bValue);
+	void SetLootable(const bool bValue);
+	void SetTemporary(const bool bValue);
+	void SetPrivate(const bool bValue);
+
+	/** General Flag Manipulation */
+	void SetFlag(const EInventoryFlags Flag, const bool bValue);
+	bool HasFlag(const EInventoryFlags Flag) const;
+};
+
+#undef LOCTEXT_NAMESPACE
+#pragma endregion
+
+#pragma region InventorySortCriteria
+
+/**
+ * Defines a single sorting rule used to order items in an inventory.
+ *
+ * Each instance represents one criterion (sorting key) and its priority
+ * relative to other criteria. When multiple sorting criteria are provided,
+ * they are applied sequentially in ascending SortPriority order, where
+ * lower values indicate higher priority.
+ *
+ * Example usage:
+ * - SortPriority = 0, SortingKey = "Rarity"
+ * - SortPriority = 1, SortingKey = "Value"
+ * - SortPriority = 2, SortingKey = "Name"
+ *
+ * In this case, items are first sorted by Rarity, then by Value for items
+ * with equal rarity, and finally by Name as a tie-breaker.
+ *
+ * Supported sorting keys typically include (but are not limited to):
+ * - Name
+ * - Value
+ * - Weight
+ * - Rarity
+ */
+USTRUCT(BlueprintType)
+struct FInventorySortCriteria
+{
+	GENERATED_BODY()
+	
+public:
+	
+	// If more than 1 sorting criteria are provided, sorting will happen one after another based on priority.
+	UPROPERTY(EditAnywhere,
+		meta=(DisplayPriority=0))
+	int32 SortPriority = 0;
+	
+	/* 
+	 * Defines what sorting criteria there are. 
+	 * Defaults:
+	 * * Name
+	 * * Value
+	 * * Weight
+	 * * Rarity
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,
+		meta=(DisplayPriority=1))
+	FString SortingKey;
+	
+};
+
+#pragma endregion
+
+// Equality operator for FInventoryRarity
+FORCEINLINE bool operator==(const FInventoryRarity& LHS, const FInventoryRarity& RHS)
+{
+	return LHS.RarityDisplayName.EqualTo(RHS.RarityDisplayName) &&
+		   LHS.RarityColor == RHS.RarityColor &&
+		   FMath::IsNearlyEqual(LHS.BasePriceMultiplier, RHS.BasePriceMultiplier) &&
+		   LHS.RarityTags == RHS.RarityTags;
+}
+
+// Inequality operator for FInventoryRarity
+FORCEINLINE bool operator!=(const FInventoryRarity& LHS, const FInventoryRarity& RHS)
+{
+	return !(LHS == RHS);
+}
+
+// Equality operator for FInventoryCategory
+FORCEINLINE bool operator==(const FInventoryCategory& LHS, const FInventoryCategory& RHS)
+{
+	return LHS.CategoryData.CategoryDisplayName.EqualTo(RHS.CategoryData.CategoryDisplayName) &&
+		   LHS.CategoryData.CategoryPriority == RHS.CategoryData.CategoryPriority &&
+		   LHS.CategoryData.CategoryTags == RHS.CategoryData.CategoryTags &&
+		   LHS.CategoryData.DisplayIcon == RHS.CategoryData.DisplayIcon &&
+		   LHS.CategoryData.CategoryFlags == RHS.CategoryData.CategoryFlags;
+}
+
+// Inequality operator for FInventoryCategory
+FORCEINLINE bool operator!=(const FInventoryCategory& LHS, const FInventoryCategory& RHS)
+{
+	return !(LHS == RHS);
+}

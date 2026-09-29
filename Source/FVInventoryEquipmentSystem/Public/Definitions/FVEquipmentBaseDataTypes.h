@@ -1,0 +1,238 @@
+// Copyright (C) 2025 Dominik (Pavlicek) Morse. All rights reserved.
+//
+// Developed for the Mountea Framework as a free tool. This solution is provided
+// for use and sharing without charge. Redistribution is allowed under the following conditions:
+//
+// - You may use this solution in commercial products, provided the product is not 
+//   this solution itself (or unless significant modifications have been made to the solution).
+// - You may not resell or redistribute the original, unmodified solution.
+//
+// For more information, visit: https://mountea.tools
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Hash/Blake3.h"
+#include "GameplayTagContainer.h"
+#include "Definitions/FVEquipmentBaseEnums.h"
+#include "Interfaces/Equipment/FVAdvancedEquipmentItemInterface.h"
+#include "FVEquipmentBaseDataTypes.generated.h"
+
+class UAnimMontage;
+class UFVAdvancedAttachmentSlot;
+
+USTRUCT()
+struct FPendingEquipmentActivation
+{
+	GENERATED_BODY()
+
+	FPendingEquipmentActivation() = default;
+
+	FPendingEquipmentActivation(const FPendingEquipmentActivation& Other)
+		: ItemGuid(Other.ItemGuid)
+		, SourceSlotId(Other.SourceSlotId)
+		, TargetSlotId(Other.TargetSlotId)
+		, Montage(Other.Montage)
+		, TransitionType(Other.TransitionType)
+		, TimeoutSeconds(Other.TimeoutSeconds)
+		, RequestedAtTimeSeconds(Other.RequestedAtTimeSeconds)
+	{
+	}
+
+	FGuid ItemGuid;
+	FName SourceSlotId = NAME_None;
+	FName TargetSlotId = NAME_None;
+	TWeakObjectPtr<UAnimMontage> Montage;
+	EEquipmentTransitionType TransitionType = EEquipmentTransitionType::EET_None;
+	double TimeoutSeconds = -1.0;
+	double RequestedAtTimeSeconds = -1.0;
+
+	bool IsValid() const { return ItemGuid.IsValid() && TransitionType != EEquipmentTransitionType::EET_None; }
+	bool IsActivation() const { return TransitionType == EEquipmentTransitionType::EET_Activate; }
+	bool IsDeactivation() const { return TransitionType == EEquipmentTransitionType::EET_Deactivate; }
+	void Reset() { *this = FPendingEquipmentActivation(); }
+};
+
+USTRUCT()
+struct FEquipmentTransitionContext
+{
+	GENERATED_BODY()
+
+	FGuid ItemGuid;
+	FName ResolvedTargetSlotId = NAME_None;
+	UFVAdvancedAttachmentSlot* CurrentSlot = nullptr;
+	UFVAdvancedAttachmentSlot* TargetSlot = nullptr;
+	TScriptInterface<IFVAdvancedEquipmentItemInterface> EquipItemInterface;
+	EEquipmentItemState ExpectedState = EEquipmentItemState::EES_Idle;
+	EEquipmentItemState NewState = EEquipmentItemState::EES_Idle;
+	bool bResolveAsActivation = false;
+	bool bNeedsSlotSwitch = false;
+};
+
+/**
+ * 
+ */
+USTRUCT(Blueprintable)
+struct FFVEquipmentSlotHeaderData
+{
+	GENERATED_BODY()
+	
+public:
+	
+	FFVEquipmentSlotHeaderData() : 
+		bIsEnabled(1)
+	{};
+	
+	void RegenerateSlotId()
+	{
+		// Get stable, sorted lists of tags
+		TArray<FGameplayTag> slotTags;
+		TagContainer.GetGameplayTagArray(slotTags);
+		slotTags.Sort([](const FGameplayTag& A, const FGameplayTag& B)
+		{
+			return A.GetTagName().LexicalLess(B.GetTagName());
+		});
+
+		TArray<FGameplayTag> blockedTags;
+		BlockedByTags.GetGameplayTagArray(blockedTags);
+		blockedTags.Sort([](const FGameplayTag& A, const FGameplayTag& B)
+		{
+			return A.GetTagName().LexicalLess(B.GetTagName());
+		});
+
+		TArray<FGameplayTag> allowedItemTypes;
+		AllowedItemTypes.GetGameplayTagArray(allowedItemTypes);
+		allowedItemTypes.Sort([](const FGameplayTag& A, const FGameplayTag& B)
+		{
+			return A.GetTagName().LexicalLess(B.GetTagName());
+		});
+
+		// Build a stable string key
+		TStringBuilder<512> stringBuilder;
+
+		stringBuilder.Append(TEXT("|tags="));
+		for (const FGameplayTag& T : slotTags)
+		{
+			stringBuilder.Append(T.GetTagName().ToString());
+			stringBuilder.AppendChar(TEXT(';'));
+		}
+
+		stringBuilder.Append(TEXT("|blocked="));
+		for (const FGameplayTag& T : blockedTags)
+		{
+			stringBuilder.Append(T.GetTagName().ToString());
+			stringBuilder.AppendChar(TEXT(';'));
+		}
+
+		stringBuilder.Append(TEXT("|allowedItemTypes="));
+		for (const FGameplayTag& T : allowedItemTypes)
+		{
+			stringBuilder.Append(T.GetTagName().ToString());
+			stringBuilder.AppendChar(TEXT(';'));
+		}
+
+		// Hash UTF-8 bytes
+		const FString stringKey = stringBuilder.ToString();
+		const FTCHARToUTF8 utf8Key(*stringKey);
+
+		const FBlake3Hash finaleHash = FBlake3::HashBuffer(utf8Key.Get(), static_cast<int64>(utf8Key.Length()));
+		SlotId = FGuid::NewGuidFromHash(finaleHash);
+	}
+	
+	void PostSerialize(const FArchive& Ar)
+	{
+		if (!SlotId.IsValid())
+			RegenerateSlotId();
+	}
+
+public:
+
+	/**
+	 * Tags that define what this equipment slot represents and what items may occupy it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		meta=(Categories="FV_Inventory.AttachmentSlots,Slot,Attachment"),
+		meta=(NoResetToDefault),
+		meta=(DisplayPriority=0))
+	FGameplayTagContainer TagContainer;
+
+	/**
+	 * Tags that, when present on an equipped item or state, block this slot from being used.
+	 * Example: a TwoHanded tag blocking LeftHand or RightHand slots.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		meta=(Categories="FV_Inventory.AttachmentSlots,Slot,Attachment"),
+		meta=(NoResetToDefault),
+		meta=(DisplayPriority=1))
+	FGameplayTagContainer BlockedByTags;
+
+	/**
+	 * Allowed item types that can be equipped in this slot.
+	 * Empty container means all item types are accepted.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		meta=(Categories="FV_Inventory.Equipment.ItemType"),
+		meta=(NoResetToDefault),
+		meta=(DisplayPriority=2))
+	FGameplayTagContainer AllowedItemTypes;
+
+	/**
+	 * Human-readable name of the slot, used purely for UI and presentation.
+	 * Does not affect SlotId or runtime logic.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		meta=(NoResetToDefault),
+		meta=(DisplayPriority=3))
+	FText DisplayName;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly,
+		meta=(NoResetToDefault),
+		meta=(DisplayPriority=4))
+	FGuid SlotId;
+
+	/**
+	 * Used for Equipment when unequip item is called.
+	 * If using fallback slot is allowed, the equipped item will be returned to fallback slot.
+	 * Example:
+	 * - Weapon is in hand
+	 * - unequip is called (from hand)
+	 * - weapon is returned to fallback slot (scabbard, back etc.)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		meta=(GetOptions="GetFallbackSlotOptions"),
+		meta=(NoResetToDefault),
+		meta=(DisplayPriority=5))
+	FName FallbackSlot;
+
+	/** Determines whether the slot is active and usable. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly,
+		meta=(NoResetToDefault),
+		meta=(DisplayPriority=6))
+	uint8 bIsEnabled : 1;
+	
+};
+
+FORCEINLINE bool operator==(const FFVEquipmentSlotHeaderData& A, const FFVEquipmentSlotHeaderData& B)
+{
+	return A.SlotId == B.SlotId;
+}
+
+FORCEINLINE bool operator!=(const FFVEquipmentSlotHeaderData& A, const FFVEquipmentSlotHeaderData& B)
+{
+	return !(A == B);
+}
+
+FORCEINLINE uint32 GetTypeHash(const FFVEquipmentSlotHeaderData& Data)
+{
+	return GetTypeHash(Data.SlotId);
+}
+
+template<>
+struct TStructOpsTypeTraits<FFVEquipmentSlotHeaderData>
+	: public TStructOpsTypeTraitsBase2<FFVEquipmentSlotHeaderData>
+{
+	enum
+	{
+		WithPostSerialize = true
+	};
+};

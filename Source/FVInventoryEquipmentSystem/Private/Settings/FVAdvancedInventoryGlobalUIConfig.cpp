@@ -1,0 +1,90 @@
+// Copyright (C) 2025 Dominik (Pavlicek) Morse. All rights reserved.
+//
+// Developed for the Mountea Framework as a free tool. This solution is provided
+// for use and sharing without charge. Redistribution is allowed under the following conditions:
+//
+// - You may use this solution in commercial products, provided the product is not 
+//   this solution itself (or unless significant modifications have been made to the solution).
+// - You may not resell or redistribute the original, unmodified solution.
+//
+// For more information, visit: https://mountea.tools
+
+#include "Settings/FVAdvancedInventoryGlobalUIConfig.h"
+
+#include "Definitions/FVInventoryBaseCommands.h"
+
+UFVAdvancedInventoryGlobalUIConfig::UFVAdvancedInventoryGlobalUIConfig()
+{
+	ValidateModalTypes();
+	SetupWidgetCommands();
+}
+
+const TArray<FString>& UFVAdvancedInventoryGlobalUIConfig::GetDefaultModalTypes()
+{
+	static const TArray<FString> defaultModalTypes
+	{
+		TEXT("Inventory.DropItem"),
+		TEXT("Inventory.UseItem"),
+		TEXT("Inventory.DestroyItem"),
+		TEXT("Inventory.SplitStack"),
+		TEXT("Crafting.NoRecipes"),
+		TEXT("Crafting.CraftItem"),
+		TEXT("Crafting.MissingIngredients"),
+		TEXT("Equipment.EquipItem"),
+		TEXT("Equipment.UnequipItem"),
+		TEXT("Equipment.ReplaceItem"),
+		TEXT("Pickup.PickupItem"),
+		TEXT("Loot.TakeItem"),
+		TEXT("Merchant.BuyItem"),
+		TEXT("Merchant.SellItem"),
+		TEXT("Merchant.InsufficientFunds"),
+		TEXT("Stealing.StealItem")
+	};
+	return defaultModalTypes;
+}
+
+void UFVAdvancedInventoryGlobalUIConfig::ValidateModalTypes()
+{
+	for (const FString& defaultModalType : GetDefaultModalTypes())
+	{
+		if (ModalTypes.Contains(defaultModalType)) 
+			continue;
+		ModalTypes.Add(defaultModalType);
+	}
+}
+
+void UFVAdvancedInventoryGlobalUIConfig::SetupWidgetCommands()
+{
+	for (const FString& command : InventoryUICommands::AllCommands)
+	{
+		if (!WidgetCommands.Contains(command))
+			WidgetCommands.Add(command);
+	}
+}
+
+TArray<FString> UFVAdvancedInventoryGlobalUIConfig::GetModalTypes() const
+{
+	TArray<FString> returnValues;
+	returnValues.Reserve(ModalTypes.Num() + 1);
+	returnValues.Add(TEXT("none"));
+	returnValues.Append(ModalTypes.Array());
+	return returnValues;
+}
+
+#if WITH_EDITOR
+void UFVAdvancedInventoryGlobalUIConfig::SetDefaultModalTypes()
+{
+	ValidateModalTypes();
+}
+
+void UFVAdvancedInventoryGlobalUIConfig::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UFVAdvancedInventoryGlobalUIConfig, ModalTypes))
+		ValidateModalTypes();
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UFVAdvancedInventoryGlobalUIConfig, WidgetCommands))
+		SetupWidgetCommands();
+}
+#endif

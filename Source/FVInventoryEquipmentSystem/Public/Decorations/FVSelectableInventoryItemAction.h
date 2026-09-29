@@ -1,0 +1,168 @@
+﻿// Copyright (C) 2025 Dominik (Pavlicek) Morse. All rights reserved.
+//
+// Developed for the Mountea Framework as a free tool. This solution is provided
+// for use and sharing without charge. Redistribution is allowed under the following conditions:
+//
+// - You may use this solution in commercial products, provided the product is not 
+//   this solution itself (or unless significant modifications have been made to the solution).
+// - You may not resell or redistribute the original, unmodified solution.
+//
+// For more information, visit: https://mountea.tools
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "FVInventoryItemAction.h"
+#include "FVSelectableInventoryItemAction.generated.h"
+
+class UFVCallbackInventoryItemAction;
+
+#define LOCTEXT_NAMESPACE "FVInventoryItemActionData"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSelectableActionQueueExecuted, UFVSelectableInventoryItemAction*, SelectableAction, UObject*, OptionalPayload);
+
+/**
+ * UFVSelectableInventoryItemAction provides lightweight inventory actions intended purely for
+ * local "UI-level" operations.
+ *
+ * Selectable Actions are executed directly inside the UI layer and should only handle presentation and
+ * interaction flow — for example opening a modal window to select a quantity (eg. when consuming an item),
+ * toggling an item as Favorite, showing a confirmation dialog, or previewing action details.
+ *
+ * ⚠ These actions must never perform gameplay logic or cross-system changes by themselves.
+ *
+ * If the action requires any execution logic (Inventory updates, Equipment changes, GAS interaction, etc.),
+ * use the "CallbackAction" property, which defines the "Callable" sibling of this class:
+ * "UFVCallbackInventoryItemAction".
+ *
+ * Example workflow:
+ * - Selectable Action requests "Consume" and spawns a modal window to pick quantity
+ * - Once confirmed, Selectable Action forwards the request to its "CallbackAction"
+ * - Callback Action performs the actual Inventory System operation and any other runtime logic
+ *
+ * @see Simple Actions
+ * @see UFVCallbackInventoryItemAction
+ * @see UFVInventoryItemAction
+ */
+UCLASS(ClassGroup=(FV), Abstract, Blueprintable, 
+	HideCategories=("Cooking","Collision","Private"),
+	meta=(DisplayName="Selectable Item Action"))
+class FVINVENTORYEQUIPMENTSYSTEM_API UFVSelectableInventoryItemAction : public UFVInventoryItemAction
+{
+	GENERATED_BODY()
+	
+public:
+	
+	UFVSelectableInventoryItemAction() :
+		ActionDisplayName(LOCTEXT("DefaultActionName", "Default Action")),
+		ActionDescription(LOCTEXT("DefaultActionDescription", "A basic inventory item action")),
+		ActionPriority(0)
+	{};
+	
+public:
+	
+	/**
+	 * Event called once Action is completed.
+	 * The Event has optional Payload of Object type.
+	 */
+	UPROPERTY(BlueprintAssignable, BlueprintReadOnly, Category="Events")
+	FOnSelectableActionQueueExecuted OnSelectableActionQueueExecuted;
+	
+protected:
+	
+	/**
+	 * Display name of the action shown in the user interface.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Primary Data")
+	FText ActionDisplayName;
+
+	/**
+	 * Brief description explaining what this action does.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Primary Data")
+	FText ActionDescription;
+	
+	/** 
+	 * Gameplay tag identifying the preferred UI Input to trigger this action. 
+	 * Limited to "Input" category only!
+	 * 
+	 * If more than 1 is specified, the list assumes first one is most preferred and last one least.
+	 * Fighting for inputs should NOT happen!
+	 * If more than 1 Item Actions end up with same preferred keys, then `ActionPriority` is what decides the order
+	 * of selection.
+	 * If you run out of UI Inputs, then the Item Action will NOT be displayed, unless you implement your own logic.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration",
+		meta=(Categories="Input,FV_Inventory.Input"),
+		meta=(TitleProperty="ActionTag"),
+		meta=(NoResetToDefault))
+	FGameplayTagContainer PreferredSelectionKeys;
+
+	/**
+	 * Priority value used for sorting actions in UI elements.
+	 * Higher the value, higher is the priority and earlier is the action displayed.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Primary Data")
+	int32 ActionPriority = INDEX_NONE;
+	
+	/**
+	 * Action which will be called if Inventory Item Action is required.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration",
+		Instanced)
+	TObjectPtr<UFVCallbackInventoryItemAction> CallbackAction;
+	
+	/**
+	 * List of tags which are disabling the action.
+	 * If Item has `QuestItem` tag (temp. quest item), then `Use` would be disabled to avoid soft-locking of the quest.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
+	FGameplayTagContainer ItemActionBlockingTags;
+	
+public:
+	
+	/**
+	 * Executes this Selectable Item Action after it has been approved/validated by an external UI flow.
+	 *
+	 * This function is not a general entry point for inventory actions. Instead, it represents the
+	 * continuation step of a Selectable Item Action that was previously initiated via ExecuteInventoryAction(),
+	 * enqueued through the UI Manager (QueueItemAction), and then gated by an interactive UI element
+	 * (for example a modal confirmation window).
+	 *
+	 * Typical flow:
+	 * - ExecuteInventoryAction() prepares UI context and enqueues this action together with a payload container.
+	 * - UI (modal/selection widget) is presented to the user and can modify the payload.
+	 * - If the UI flow is cancelled, the action is cancelled/invalidated and ExecuteQueuedAction is never called.
+	 * - If the UI flow is approved, the UI notifies the action that it is ready, and ExecuteQueuedAction() is invoked.
+	 *
+	 * ExecuteQueuedAction() should use the payload as the finalized data container (e.g. quantity to consume)
+	 * and complete the action’s logic (apply changes, send commands, update UI, etc.).
+	 *
+	 * @param OptionalPayload Optional context/data container associated with this queued action instance.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|Inventory|Item Actions")
+	void ExecuteQueuedAction(UObject* OptionalPayload);
+	virtual void ExecuteQueuedAction_Implementation(UObject* OptionalPayload);
+	
+	/**
+	 * Determines whether this action should be visible in the UI for the given item.
+	 * 
+	 * @param TargetItem The inventory item to check visibility for.
+	 * 
+	 * @return True if the action should be shown in the user interface, false otherwise.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|Inventory|Item Actions")
+	bool IsActionVisible(const FFVInventoryItem& TargetItem) const;
+	virtual bool IsActionVisible_Implementation(const FFVInventoryItem& TargetItem) const;
+	
+	int32 GetActionPriority() const { return ActionPriority; };
+	
+	UFVCallbackInventoryItemAction* GetCallbackItemAction() const
+	{ return CallbackAction; };
+	
+public:
+	
+	virtual bool IsAllowed_Implementation(const FFVInventoryItem& TargetItem) const override;
+};
+
+#undef LOCTEXT_NAMESPACE

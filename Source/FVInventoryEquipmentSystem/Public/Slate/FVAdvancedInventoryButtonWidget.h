@@ -1,0 +1,73 @@
+﻿// Copyright (C) 2025 Dominik (Pavlicek) Morse. All rights reserved.
+//
+// Developed for the Mountea Framework as a free tool. This solution is provided
+// for use and sharing without charge. Redistribution is allowed under the following conditions:
+//
+// - You may use this solution in commercial products, provided the product is not 
+//   this solution itself (or unless significant modifications have been made to the solution).
+// - You may not resell or redistribute the original, unmodified solution.
+//
+// For more information, visit: https://mountea.tools
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "CommonButtonBase.h"
+#include "GameplayTagContainer.h"
+#include "Interfaces/Widgets/FVInventoryGenericWidgetInterface.h"
+#include "FVAdvancedInventoryButtonWidget.generated.h"
+
+/**
+ * UFVAdvancedInventoryButtonWidget provides gameplay tag-based button functionality for inventory interfaces.
+ * Inventory buttons support action tag classification, contextual command processing, and theme application
+ * for consistent and extensible user interaction within the inventory system.
+ *
+ * @see Inventory UI Controls
+ * @see IFVInventoryGenericWidgetInterface
+ * @see FGameplayTag
+ */
+UCLASS()
+class FVINVENTORYEQUIPMENTSYSTEM_API UFVAdvancedInventoryButtonWidget : public UButton, public IFVInventoryGenericWidgetInterface
+{
+	GENERATED_BODY()
+
+public:
+	
+	virtual void ProcessInventoryWidgetCommand_Implementation(const FString& Command, UObject* OptionalPayload) override {};
+	virtual void ApplyTheme_Implementation() override;
+	virtual void RefreshWidget_Implementation() override {};
+	virtual void ConsumeUIInput_Implementation(const FGameplayTag& InputTag, const FFVWidgetInputPayload& Payload, float DeltaTime) override {};
+	virtual FGameplayTag GetWidgetTag_Implementation() const override { return Tag; };
+	virtual void SetWidgetTag_Implementation(const FGameplayTag& WidgetTag) override
+	{
+		if (WidgetTag != Tag)
+			Tag = WidgetTag;
+	};
+
+private:
+	
+#if WITH_EDITOR
+	
+	virtual const FText GetPaletteCategory() override
+	{
+		return NSLOCTEXT("FVAdvancedInventory", "WidgetPaletteCategory", "FV Advanced Inventory & Equipment");
+	}
+
+#endif
+
+public:
+	
+	/** Defines type of the Widget. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="FV|Primary Data",
+		AdvancedDisplay, 
+		DisplayName="Widget Tag")
+	FGameplayTag Tag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Button",
+		meta=(NoResetToDefault))
+	FGameplayTag ButtonActionTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Button",
+		meta=(NoResetToDefault))
+	FString ButtonActionContext;
+};

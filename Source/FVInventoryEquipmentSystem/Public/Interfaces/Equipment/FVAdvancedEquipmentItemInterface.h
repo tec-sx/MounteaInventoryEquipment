@@ -1,0 +1,109 @@
+﻿// Copyright (C) 2025 Dominik (Pavlicek) Morse. All rights reserved.
+//
+// Developed for the Mountea Framework as a free tool. This solution is provided
+// for use and sharing without charge. Redistribution is allowed under the following conditions:
+//
+// - You may use this solution in commercial products, provided the product is not 
+//   this solution itself (or unless significant modifications have been made to the solution).
+// - You may not resell or redistribute the original, unmodified solution.
+//
+// For more information, visit: https://mountea.tools
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/Interface.h"
+#include "FVAdvancedEquipmentItemInterface.generated.h"
+
+class UAnimMontage;
+enum class EEquipmentItemState : uint8;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEquipmentItemStateChanged, const TScriptInterface<IFVAdvancedEquipmentItemInterface>&, EquipmentItem, const EEquipmentItemState, NewState);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FFVEquipmentItemStateChangedBinding, const TScriptInterface<IFVAdvancedEquipmentItemInterface>&, EquipmentItem, const EEquipmentItemState, NewState);
+
+UINTERFACE(MinimalAPI, Blueprintable, BlueprintType)
+class UFVAdvancedEquipmentItemInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class FVINVENTORYEQUIPMENTSYSTEM_API IFVAdvancedEquipmentItemInterface
+{
+	GENERATED_BODY()
+	
+public:
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	FName GetEquipmentItemPreferredSlot() const;
+	virtual FName GetEquipmentItemPreferredSlot_Implementation() const = 0;
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	FGameplayTag GetEquipmentPreferredSlotTag() const;
+	virtual FGameplayTag GetEquipmentPreferredSlotTag_Implementation() const = 0;
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	EEquipmentItemState GetEquipmentItemState() const;
+	virtual EEquipmentItemState GetEquipmentItemState_Implementation() const = 0;
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool SetEquipmentItemState(const EEquipmentItemState NewEquipmentItemState);
+	virtual bool SetEquipmentItemState_Implementation(const EEquipmentItemState NewEquipmentItemState) = 0;
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool DoesAutoActive() const;
+	virtual bool DoesAutoActive_Implementation() const = 0;
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool SetAutoActive(const bool bValue);
+	virtual bool SetAutoActive_Implementation(const bool bValue) = 0;	
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool DoesRequireActivationEvent() const;
+	virtual bool DoesRequireActivationEvent_Implementation() const = 0;
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool SetRequiresActivationEvent(const bool bValue);
+	virtual bool SetRequiresActivationEvent_Implementation(const bool bValue) = 0;
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	UAnimMontage* GetActivationAnimation() const;
+	virtual UAnimMontage* GetActivationAnimation_Implementation() const = 0;
+
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool SetActivationAnimation(UAnimMontage* NewActivateAnimation);
+	virtual bool SetActivationAnimation_Implementation(UAnimMontage* NewActivateAnimation) = 0;
+
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool ShouldReplicateActivationAnimation() const;
+	virtual bool ShouldReplicateActivationAnimation_Implementation() const = 0;
+
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool DoesUseDeactivationAnimation() const;
+	virtual bool DoesUseDeactivationAnimation_Implementation() const
+	{ return false; }
+
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool SetUseDeactivationAnimation(const bool bValue);
+	virtual bool SetUseDeactivationAnimation_Implementation(const bool bValue)
+	{ return false; }
+
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	UAnimMontage* GetDeactivationAnimation() const;
+	virtual UAnimMontage* GetDeactivationAnimation_Implementation() const
+	{ return nullptr; }
+
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	bool SetDeactivationAnimation(UAnimMontage* NewDeactivateAnimation);
+	virtual bool SetDeactivationAnimation_Implementation(UAnimMontage* NewDeactivateAnimation)
+	{ return false; }
+
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	FGuid GetEquippedItemId() const;
+	virtual FGuid GetEquippedItemId_Implementation() const = 0;
+	
+	UFUNCTION(BlueprintNativeEvent, Category="FV|Inventory & Equipment|EquipmentItem")
+	void SetEquippedItemId(const FGuid& NewEquippedItemId);
+	virtual void SetEquippedItemId_Implementation(const FGuid& NewEquippedItemId) = 0;
+	
+	virtual FOnEquipmentItemStateChanged& GetOnEquipmentItemStateChangedHandle() = 0;
+};
